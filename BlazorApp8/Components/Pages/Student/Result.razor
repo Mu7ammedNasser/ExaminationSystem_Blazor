@@ -1,0 +1,78 @@
+@page "/student/results/{AttemptId:int}"
+@using BlazorApp8.Application.DTOs
+@using BlazorApp8.Application.Interfaces
+@attribute [Authorize(Roles = "Student")]
+@inject IStudentService StudentService
+
+<PageTitle>Exam Result</PageTitle>
+
+<div class="mb-3">
+    <a href="student/results" class="btn btn-outline-secondary">&larr; Back to My Results</a>
+</div>
+
+@if (attempt == null)
+{
+    <p><em>Loading result...</em></p>
+}
+else
+{
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow-sm text-center">
+                <div class="card-header bg-primary text-white">
+                    <h3>Exam Result</h3>
+                    <h5>@attempt.ExamTitle</h5>
+                </div>
+                <div class="card-body py-5">
+                    
+                    <h1 class="display-3 mb-4">
+                        <span class="text-success">@attempt.Score</span> <small class="text-muted">/ @attempt.TotalQuestions</small>
+                    </h1>
+                    
+                    <h3 class="@(GetPercentage(attempt) >= 50 ? "text-success" : "text-danger")">
+                        <span>@(GetPercentage(attempt).ToString("0.0"))</span>@("%")
+                    </h3>
+
+                    <hr class="my-4" />
+
+                    <div class="row text-start mt-4">
+                        <div class="col-sm-6 mb-2">
+                            <strong>Date Taken:</strong><br />
+                            @attempt.StartTime.ToString("MMM dd, yyyy HH:mm")
+                        </div>
+                        <div class="col-sm-6 mb-2">
+                            <strong>Duration Taken:</strong><br />
+                            @if (attempt.EndTime.HasValue)
+                            {
+                                var diff = attempt.EndTime.Value - attempt.StartTime;
+                                <span>@(diff.Minutes)m @(diff.Seconds)s</span>
+                            }
+                        </div>
+                        <div class="col-sm-6 mb-2">
+                            <strong>Correct Answers:</strong><br />
+                            @attempt.Score
+                        </div>
+                        <div class="col-sm-6 mb-2">
+                            <strong>Incorrect/Unanswered:</strong><br />
+                            @(attempt.TotalQuestions - attempt.Score)
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public int AttemptId { get; set; }
+
+    private ExamAttemptDto? attempt;
+
+    private double GetPercentage(ExamAttemptDto a) => a.TotalQuestions == 0 ? 0 : (double)a.Score / a.TotalQuestions * 100;
+
+    protected override async Task OnInitializedAsync()
+    {
+        attempt = await StudentService.GetAttemptResultAsync(AttemptId);
+    }
+}

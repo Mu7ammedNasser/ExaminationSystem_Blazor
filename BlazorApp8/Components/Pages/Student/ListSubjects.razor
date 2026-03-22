@@ -1,0 +1,122 @@
+@page "/student/subjects"
+@using BlazorApp8.Application.DTOs
+@using BlazorApp8.Application.Interfaces
+@using System.Security.Claims
+@attribute [Authorize(Roles = "Student")]
+@rendermode InteractiveServer
+@inject IStudentService StudentService
+@inject NavigationManager NavigationManager
+@inject AuthenticationStateProvider AuthStateProvider
+
+<PageTitle>Available Exams</PageTitle>
+
+<h3>Available Subjects and Exams</h3>
+
+@if (subjects == null)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    <div class="row">
+        <div class="col-md-4">
+            <div class="list-group">
+                @foreach (var sub in subjects)
+                {
+                    <button type="button" class="list-group-item list-group-item-action @(selectedSubject?.Id == sub.Id ? "active" : "")" @onclick="() => SelectSubject(sub)">
+                        <div class="d-flex w-100 justify-content-between">
+                            <h5 class="mb-1">@sub.Name</h5>
+                        </div>
+                        <small>@sub.Description</small>
+                    </button>
+                }
+            </div>
+        </div>
+        <div class="col-md-8">
+            @if (selectedSubject != null)
+            {
+                <h4>Exams for @selectedSubject.Name</h4>
+                @if (exams == null)
+                {
+                    <p><em>Loading exams...</em></p>
+                }
+                else if (!exams.Any())
+                {
+                    <p>No exams available for this subject.</p>
+                }
+                else
+                {
+                    <div class="row g-3">
+                        @foreach (var exam in exams)
+                        {
+                            <div class="col-md-6">
+                                <div class="card h-100 shadow-sm border-primary">
+                                    <div class="card-body">
+                                        <h5 class="card-title text-primary">@exam.Title</h5>
+                                        <p class="card-text">
+                                            <strong>Duration:</strong> @exam.DurationMinutes minutes <br />
+                                            <strong>Questions:</strong> @exam.TotalQuestions <br />
+                                            <strong>Total Grade:</strong> @exam.TotalQuestions (1 pt each)
+                                        </p>
+                                    </div>
+                                    <div class="card-footer bg-transparent border-top-0">
+                                        @if (completedExamIds.Contains(exam.Id))
+                                        {
+                                            <button class="btn btn-secondary w-100" disabled>Already Completed</button>
+                                        }
+                                        else
+                                        {
+                                            <button class="btn btn-success w-100" @onclick="() => StartExam(exam)">Start Exam</button>
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+            }
+            else
+            {
+                <div class="alert alert-info">Select a subject to view available exams.</div>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    private List<SubjectDto>? subjects;
+    private SubjectDto? selectedSubject;
+    private List<ExamDto>? exams;
+    private HashSet<int> completedExamIds = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var subs = await StudentService.GetSubjectsAsync();
+        subjects = subs.ToList();
+
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var studentId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        
+        if (!string.IsNullOrEmpty(studentId))
+        {
+            var attempts = await StudentService.GetStudentAttemptsAsync(studentId);
+            foreach (var attempt in attempts.Where(a => a.IsSubmitted))
+            {
+                completedExamIds.Add(attempt.ExamId);
+            }
+        }
+    }
+
+    private async Task SelectSubject(SubjectDto subject)
+    {
+        selectedSubject = subject;
+        exams = null;
+        var exms = await StudentService.GetExamsForSubjectAsync(subject.Id);
+        exams = exms.ToList();
+    }
+
+    private void StartExam(ExamDto exam)
+    {
+        NavigationManager.NavigateTo($"/student/exams/{exam.Id}");
+    }
+}

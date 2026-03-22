@@ -1,0 +1,82 @@
+@page "/student/results"
+@using BlazorApp8.Application.DTOs
+@using BlazorApp8.Application.Interfaces
+@using System.Security.Claims
+@attribute [Authorize(Roles = "Student")]
+@inject IStudentService StudentService
+@inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager NavigationManager
+
+<PageTitle>My Exam Results</PageTitle>
+
+<h3>My Exam Results</h3>
+
+@if (attempts == null)
+{
+    <p><em>Loading attempts...</em></p>
+}
+else if (!attempts.Any())
+{
+    <p>You haven't completed any exams yet.</p>
+}
+else
+{
+    <div class="row row-cols-1 row-cols-md-2 g-4 mt-2">
+        @foreach (var attempt in attempts.OrderByDescending(a => a.StartTime))
+        {
+            <div class="col">
+                <div class="card h-100 shadow-sm @(attempt.IsSubmitted ? "" : "border-warning")">
+                    <div class="card-body">
+                        <h5 class="card-title">@attempt.ExamTitle</h5>
+                        <p class="card-text">
+                            <strong>Date:</strong> @attempt.StartTime.ToString("MMM dd, yyyy HH:mm") <br/>
+                            @if (attempt.IsSubmitted)
+                            {
+                                <strong>Score:</strong> <span class="badge bg-success fs-6">@attempt.Score / @attempt.TotalQuestions</span>
+                                <br /><strong>Grade:</strong> <span>@(GetPercentage(attempt).ToString("0"))</span>@("%")
+                            }
+                            else
+                            {
+                                <span class="badge bg-warning text-dark">In Progress / Incomplete</span>
+                            }
+                        </p>
+                    </div>
+                    @if (attempt.IsSubmitted)
+                    {
+                        <div class="card-footer bg-transparent border-top-0">
+                            <a href="student/results/@attempt.Id" class="btn btn-primary w-100">View Details</a>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="card-footer bg-transparent border-top-0">
+                            <a href="student/exams/@attempt.ExamId" class="btn btn-warning w-100 text-dark">Resume Exam</a>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    private List<ExamAttemptDto>? attempts;
+
+    private double GetPercentage(ExamAttemptDto a) => a.TotalQuestions == 0 ? 0 : (double)a.Score / a.TotalQuestions * 100;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var studentId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+        if (!string.IsNullOrEmpty(studentId))
+        {
+            var results = await StudentService.GetStudentAttemptsAsync(studentId);
+            attempts = results.ToList();
+        }
+        else
+        {
+            attempts = new List<ExamAttemptDto>();
+        }
+    }
+}

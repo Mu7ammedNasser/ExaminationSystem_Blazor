@@ -1,0 +1,88 @@
+@page "/instructor/subjects"
+@using BlazorApp8.Application.DTOs
+@using BlazorApp8.Application.Interfaces
+@attribute [Authorize(Roles = "Instructor")]
+@rendermode InteractiveServer
+@inject IInstructorService InstructorService
+
+<PageTitle>Manage Subjects</PageTitle>
+
+<h3>Manage Subjects</h3>
+
+<EditForm Model="newSubject" OnValidSubmit="CreateSubject" class="mb-4 p-3 border rounded shadow-sm">
+    <DataAnnotationsValidator />
+    <ValidationSummary class="text-danger" />
+
+    <div class="row">
+        <div class="col-md-4">
+            <label class="form-label">Name</label>
+            <InputText @bind-Value="newSubject.Name" class="form-control" placeholder="Subject Name" required />
+        </div>
+        <div class="col-md-6">
+            <label class="form-label">Description</label>
+            <InputText @bind-Value="newSubject.Description" class="form-control" placeholder="Description" required />
+        </div>
+        <div class="col-md-2 d-flex align-items-end">
+            <button type="submit" class="btn btn-primary w-100">Create</button>
+        </div>
+    </div>
+</EditForm>
+
+@if (subjects == null)
+{
+    <p><em>Loading...</em></p>
+}
+else if (!subjects.Any())
+{
+    <p>No subjects found. Create one above.</p>
+}
+else
+{
+    <div class="table-responsive">
+        <table class="table table-striped table-hover">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Name</th>
+                    <th>Description</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var subject in subjects)
+                {
+                    <tr>
+                        <td>@subject.Id</td>
+                        <td>@subject.Name</td>
+                        <td>@subject.Description</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+@code {
+    private SubjectDto newSubject = new();
+    private List<SubjectDto>? subjects;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadSubjects();
+    }
+
+    private async Task LoadSubjects()
+    {
+        var result = await InstructorService.GetAllSubjectsAsync();
+        subjects = result.ToList();
+    }
+
+    private async Task CreateSubject()
+    {
+        if (!string.IsNullOrWhiteSpace(newSubject.Name))
+        {
+            await InstructorService.CreateSubjectAsync(newSubject);
+            newSubject = new SubjectDto(); // Reset form
+            await LoadSubjects();
+        }
+    }
+}

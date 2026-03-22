@@ -1,0 +1,273 @@
+@page "/student/exams/{ExamId:int}"
+@using BlazorApp8.Application.DTOs
+@using BlazorApp8.Application.Interfaces
+@using System.Security.Claims
+@attribute [Authorize(Roles = "Student")]
+@rendermode InteractiveServer
+@inject IStudentService StudentService
+@inject NavigationManager NavigationManager
+@inject AuthenticationStateProvider AuthStateProvider
+@inject IJSRuntime JSRuntime
+
+<PageTitle>Take Exam</PageTitle>
+
+@if (errorMessage != null)
+{
+    <div class="alert alert-danger">
+        @errorMessage
+        <br/>
+        <a href="student/subjects" class="btn btn-primary mt-2">Go Back</a>
+    </div>
+}
+else if (attempt == null || questions == null || !questions.Any())
+{
+    <div class="d-flex justify-content-center mt-5">
+        <div class="spinner-border" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+    </div>
+}
+else
+{
+    <div class="row">
+        <!-- Question Panel -->
+        <div class="col-md-8">
+            <div class="card shadow-sm mb-3">
+                <div class="card-header d-flex justify-content-between align-items-center bg-light">
+                    <h5 class="mb-0">Question @(currentQuestionIndex + 1) of @attempt.TotalQuestions</h5>
+                    <div>
+                        <span class="badge bg-primary fs-6 me-2">Time Remaining: <span id="timer-display">--:--</span></span>
+                        <button class="btn btn-danger btn-sm" @onclick="ConfirmSubmit">Finish Exam</button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <h5 class="card-title fw-normal">@currentQuestion.Text</h5>
+                    <hr />
+
+                    <div class="form-check mb-2">
+                        <input class="form-check-input" type="radio" name="options" id="optA" value="A" 
+                               checked="@(GetAnswer() == "A")" @onchange="@(() => SelectAnswer("A"))">
+                        <label class="form-check-label fs-5 w-100" for="optA">A) @currentQuestion.OptionA</label>
+                    </div>
+                    <div class="form-check mb-2">
+                        <input class="form-check-input" type="radio" name="options" id="optB" value="B" 
+                               checked="@(GetAnswer() == "B")" @onchange="@(() => SelectAnswer("B"))">
+                        <label class="form-check-label fs-5 w-100" for="optB">B) @currentQuestion.OptionB</label>
+                    </div>
+                    <div class="form-check mb-2">
+                        <input class="form-check-input" type="radio" name="options" id="optC" value="C" 
+                               checked="@(GetAnswer() == "C")" @onchange="@(() => SelectAnswer("C"))">
+                        <label class="form-check-label fs-5 w-100" for="optC">C) @currentQuestion.OptionC</label>
+                    </div>
+                    <div class="form-check mb-2">
+                        <input class="form-check-input" type="radio" name="options" id="optD" value="D" 
+                               checked="@(GetAnswer() == "D")" @onchange="@(() => SelectAnswer("D"))">
+                        <label class="form-check-label fs-5 w-100" for="optD">D) @currentQuestion.OptionD</label>
+                    </div>
+
+                    <div class="mt-4 pt-3 border-top d-flex justify-content-between align-items-center">
+                        <div>
+                            <button class="btn btn-outline-warning" @onclick="ToggleFlag">
+                                @if (IsFlagged()) { <span><i class="bi bi-flag-fill"></i> Unflag</span> }
+                                else { <span><i class="bi bi-flag"></i> Flag Question</span> }
+                            </button>
+                        </div>
+                        <div>
+                            <button class="btn btn-secondary me-2" disabled="@(currentQuestionIndex == 0)" @onclick="PreviousQuestion">Previous</button>
+                            <button class="btn btn-primary" disabled="@(currentQuestionIndex == tryCount - 1)" @onclick="NextQuestion">Next</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Navigation Panel -->
+        <div class="col-md-4">
+            <div class="card shadow-sm">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">Question Navigation</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex flex-wrap gap-2 mb-4">
+                        @for (int i = 0; i < tryCount; i++)
+                        {
+                            var idx = i;
+                            <button class="btn btn-sm @GetNavButtonClass(idx)" style="width: 40px; height: 40px;" @onclick="() => NavigateToQuestion(idx)">
+                                @(idx + 1)
+                            </button>
+                        }
+                    </div>
+
+                    <div class="mt-3">
+                        <p class="mb-1"><span class="badge bg-success" style="width: 25px;">&nbsp;</span> Answered: @GetAnsweredCount()</p>
+                        <p class="mb-1"><span class="badge bg-secondary" style="width: 25px;">&nbsp;</span> Unanswered: @(tryCount - GetAnsweredCount())</p>
+                        <p class="mb-0"><span class="badge bg-warning" style="width: 25px;">&nbsp;</span> Flagged</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public int ExamId { get; set; }
+
+    private ExamAttemptDto? attempt;
+    private List<QuestionDto>? questions;
+    private Dictionary<int, StudentAnswerDto> answers = new();
+    private string? errorMessage;
+    private int currentQuestionIndex = 0;
+    private int tryCount = 10;
+    private DotNetObjectReference<TakeExam>? dotNetHelper;
+    private bool timerStarted = false;
+
+    private QuestionDto currentQuestion => questions![currentQuestionIndex];
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+            var studentId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            
+            if (string.IsNullOrEmpty(studentId))
+            {
+                errorMessage = "You must be logged in to take an exam.";
+                return;
+            }
+
+            attempt = await StudentService.StartExamAsync(studentId, ExamId);
+            
+            var qs = await StudentService.GetQuestionsForAttemptAsync(attempt.Id);
+            questions = qs.ToList();
+            tryCount = questions.Count;
+
+            foreach (var q in questions)
+            {
+                answers[q.Id] = new StudentAnswerDto { QuestionId = q.Id, SelectedAnswer = "", IsFlagged = false };
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message + (ex.InnerException != null ? " | Inner: " + ex.InnerException.Message : "");
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!timerStarted && attempt != null && errorMessage == null)
+        {
+            timerStarted = true;
+            var examInfo = await StudentService.GetExamByIdAsync(ExamId);
+            if (examInfo != null)
+            {
+                dotNetHelper = DotNetObjectReference.Create(this);
+                await JSRuntime.InvokeVoidAsync("examTimer.start", examInfo.DurationMinutes, dotNetHelper);
+            }
+        }
+    }
+
+    private string GetAnswer() => answers[currentQuestion.Id].SelectedAnswer;
+    private bool IsFlagged() => answers[currentQuestion.Id].IsFlagged;
+
+    private async Task SelectAnswer(string option)
+    {
+        answers[currentQuestion.Id].SelectedAnswer = option;
+        await SaveCurrentAnswer();
+    }
+
+    private async Task ToggleFlag()
+    {
+        answers[currentQuestion.Id].IsFlagged = !answers[currentQuestion.Id].IsFlagged;
+        await SaveCurrentAnswer();
+    }
+
+    private async Task SaveCurrentAnswer()
+    {
+        var ans = answers[currentQuestion.Id];
+        await StudentService.SaveAnswerAsync(attempt!.Id, currentQuestion.Id, ans.SelectedAnswer, ans.IsFlagged);
+    }
+
+    private void PreviousQuestion()
+    {
+        if (currentQuestionIndex > 0) currentQuestionIndex--;
+    }
+
+    private void NextQuestion()
+    {
+        if (currentQuestionIndex < tryCount - 1) currentQuestionIndex++;
+    }
+
+    private void NavigateToQuestion(int index)
+    {
+        currentQuestionIndex = index;
+    }
+
+    private string GetNavButtonClass(int index)
+    {
+        var qId = questions![index].Id;
+        var ans = answers[qId];
+        
+        if (ans.IsFlagged) return "btn-warning";
+        if (!string.IsNullOrEmpty(ans.SelectedAnswer)) return "btn-success";
+        return "btn-secondary";
+    }
+
+    private int GetAnsweredCount()
+    {
+        return answers.Values.Count(a => !string.IsNullOrEmpty(a.SelectedAnswer));
+    }
+
+    private async Task ConfirmSubmit()
+    {
+        int unanswered = tryCount - GetAnsweredCount();
+        if (unanswered > 0)
+        {
+            bool confirmed = await JSRuntime.InvokeAsync<bool>("confirm", $"You have {unanswered} unanswered questions. Are you sure you want to finish the exam?");
+            if (!confirmed) return;
+        }
+        else
+        {
+            bool confirmed = await JSRuntime.InvokeAsync<bool>("confirm", "Are you sure you want to submit your exam?");
+            if (!confirmed) return;
+        }
+
+        await SubmitExamFinally();
+    }
+
+    [JSInvokable]
+    public async Task TimeExpired()
+    {
+        await InvokeAsync(async () =>
+        {
+            await SubmitExamFinally();
+        });
+    }
+
+    private bool isSubmitting = false;
+
+    private async Task SubmitExamFinally()
+    {
+        if (attempt != null && !isSubmitting)
+        {
+            isSubmitting = true;
+            try
+            {
+                await JSRuntime.InvokeVoidAsync("examTimer.stop");
+                await StudentService.SubmitExamAsync(attempt.Id);
+                NavigationManager.NavigateTo($"/student/results/{attempt.Id}");
+            }
+            catch (Exception)
+            {
+                isSubmitting = false; // reset on true failure
+                throw;
+            }
+        }
+    }
+
+    public void Dispose()
+    {
+        dotNetHelper?.Dispose();
+    }
+}

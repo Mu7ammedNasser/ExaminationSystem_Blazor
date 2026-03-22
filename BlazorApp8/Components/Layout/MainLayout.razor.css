@@ -1,0 +1,115 @@
+.app-shell {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+.main-panel {
+    flex: 1;
+    min-width: 0;
+    background: linear-gradient(180deg, rgba(248, 250, 252, 0.7) 0%, rgba(241, 245, 249, 0.55) 100%);
+}
+
+.sidebar {
+    background: radial-gradient(circle at 0% 0%, #334155 0%, #1e1b4b 28%, #1e293b 65%, #0f172a 100%);
+    box-shadow: inset -1px 0 0 rgba(255, 255, 255, 0.06), 10px 0 30px rgba(15, 23, 42, 0.2);
+}
+
+.topbar {
+    background: linear-gradient(120deg, rgba(15, 23, 42, 0.86) 0%, rgba(49, 46, 129, 0.78) 55%, rgba(14, 116, 144, 0.8) 100%);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.16);
+    min-height: 4.4rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.85rem 1.35rem;
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.18);
+}
+
+.topbar-eyebrow {
+    margin: 0;
+    font-size: 0.68rem;
+    letter-spacing: .11em;
+    text-transform: uppercase;
+    color: rgba(191, 219, 254, 0.88);
+    font-weight: 700;
+}
+
+.topbar-title {
+    margin: 0;
+    font-size: 1.08rem;
+    font-weight: 800;
+    color: #ffffff;
+}
+
+.topbar-link {
+    color: #ffffff;
+    font-weight: 700;
+    text-decoration: none;
+    padding: 0.45rem 0.9rem;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.14);
+    border: 1px solid rgba(255, 255, 255, 0.24);
+}
+
+.topbar-link:hover {
+    background: rgba(255, 255, 255, 0.24);
+}
+
+.content-container {
+    padding: 1.6rem;
+}
+
+@media (max-width: 640.98px) {
+    .topbar {
+        padding: 0.75rem 1rem;
+        min-height: 4rem;
+    }
+
+    .topbar-title {
+        font-size: 0.96rem;
+    }
+
+    .content-container {
+        padding: 1rem;
+    }
+}
+
+@media (min-width: 641px) {
+    .app-shell {
+        flex-direction: row;
+    }
+
+    .sidebar {
+        width: 290px;
+        height: 100vh;
+        position: sticky;
+        top: 0;
+    }
+}
+
+#blazor-error-ui {
+    color-scheme: light only;
+    background: #fff7ed;
+    color: #9a3412;
+    bottom: 0;
+    box-shadow: 0 -1px 2px rgba(0, 0, 0, 0.2);
+    box-sizing: border-box;
+    display: none;
+    left: 0;
+    padding: 0.6rem 1.25rem 0.7rem 1.25rem;
+    position: fixed;
+    width: 100%;
+    z-index: 1000;
+}
+
+#blazor-error-ui .dismiss {
+    cursor: pointer;
+    position: absolute;
+    right: 0.75rem;
+    top: 0.5rem;
+}

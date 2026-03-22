@@ -1,0 +1,71 @@
+<div class="top-row ps-3 navbar navbar-dark">
+    <div class="container-fluid brand-wrap">
+        <a class="navbar-brand" href="">
+            <span class="brand-dot"></span>
+            <span>Examination System</span>
+        </a>
+    </div>
+</div>
+
+<input type="checkbox" title="Navigation menu" class="navbar-toggler" />
+
+<div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler')?.click()">
+    <nav class="flex-column">
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
+                <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Home
+            </NavLink>
+        </div>
+
+        <AuthorizeView>
+            <Authorized>
+                <div class="nav-section-title px-3">Dashboard</div>
+
+                <AuthorizeView Roles="Instructor" Context="instructorContext">
+                    <div class="nav-item px-3">
+                        <NavLink class="nav-link" href="instructor/subjects">
+                            <span class="bi bi-book-half" aria-hidden="true"></span> Manage Subjects
+                        </NavLink>
+                    </div>
+                    <div class="nav-item px-3">
+                        <NavLink class="nav-link" href="instructor/exams">
+                            <span class="bi bi-journal-text" aria-hidden="true"></span> Manage Exams
+                        </NavLink>
+                    </div>
+                </AuthorizeView>
+
+                <AuthorizeView Roles="Student" Context="studentContext">
+                    <div class="nav-item px-3">
+                        <NavLink class="nav-link" href="student/subjects">
+                            <span class="bi bi-list-task" aria-hidden="true"></span> Take Exams
+                        </NavLink>
+                    </div>
+                    <div class="nav-item px-3">
+                        <NavLink class="nav-link" href="student/results">
+                            <span class="bi bi-award" aria-hidden="true"></span> My Results
+                        </NavLink>
+                    </div>
+                </AuthorizeView>
+
+                <div class="nav-item px-3 mt-2">
+                    <NavLink class="nav-link nav-link-logout" href="logout">
+                        <span class="bi bi-arrow-bar-right" aria-hidden="true"></span> Logout
+                    </NavLink>
+                </div>
+            </Authorized>
+            <NotAuthorized>
+                <div class="nav-section-title px-3">Account</div>
+                <div class="nav-item px-3">
+                    <a class="nav-link" href="/login" data-enhance-nav="false">
+                        <span class="bi bi-person-badge" aria-hidden="true"></span> Login
+                    </a>
+                </div>
+                <div class="nav-item px-3">
+                    <a class="nav-link" href="/register" data-enhance-nav="false">
+                        <span class="bi bi-person-plus" aria-hidden="true"></span> Register
+                    </a>
+                </div>
+            </NotAuthorized>
+        </AuthorizeView>
+    </nav>
+</div>
